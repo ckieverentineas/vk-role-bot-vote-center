@@ -2,13 +2,14 @@ import { HearManager } from "@vk-io/hear";
 import { Keyboard, KeyboardBuilder } from "vk-io";
 import { IQuestionMessageContext } from "vk-io-question";
 import { answerTimeLimit, chat_id, root, timer_text, timer_text_oper, vk } from '../index';
-import { Confirm_User_Success, Fixed_Number_To_Five, Input_Text, Keyboard_Index, Logger, Send_Message } from "./core/helper";
+import { Confirm_User_Success, Fixed_Number_To_Five, Input_Text, Keyboard_Index, Logger, Send_Message, Sleep } from "./core/helper";
 import prisma from "./events/module/prisma_client";
 import { User_Info } from "./events/module/tool";
 import { entityPrinter } from "./core/crud_engine";
 import { Account, Blank, Candidate, Vote } from "@prisma/client";
 import { Simply_Carusel_Selector } from "./core/simply_carusel_selector";
 import { ico_list } from "./events/module/data_center/icons_lib";
+import * as fs from 'fs';
 
 export function registerUserRoutes(hearManager: HearManager<IQuestionMessageContext>): void {
     hearManager.hear(/!админка/, async (context: any) => {
@@ -184,7 +185,7 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
             if (filteredBlankList.length === 0) { await context.send(`Кандидаты кончились, вы отдали голоса за всех!`); break }
             const blank_id_sel = await Simply_Carusel_Selector(
                 context,
-                `Выберите кандидата, чтобы проголосовать:`,
+                `Выберите участника (-ов), чтобы проголосовать`,
                 filteredBlankList,
                 async (item) => `\n\n${ico_list['person'].ico} Участник: ${item.name}\n`,
                 (item) => `🎯 ${item.name.slice(0,30)}`, // labelExtractor
@@ -192,7 +193,8 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
             );
             if (!blank_id_sel) { return }
             const voter = await prisma.vote.create({ data: { id_account: account.id, id_candidate: blank_id_sel } })
-            if (voter) { await context.send(`Ваш голос за участника №${voter.id} принят`)}
+            const candy = await prisma.candidate.findFirst({ where: { id: blank_id_sel } })
+            if (voter) { await context.send(`Ваш голос за участника ${candy?.name} принят`)}
             const confirm: { status: boolean, text: String } = await Confirm_User_Success(context, `проголосовать еще за кого-то??`)
     	    //await context.send(`${confirm.text}`)
     	    if (!confirm.status) { wotker = false }
@@ -245,7 +247,7 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
             const coun = await prisma.vote.count({ where: { id_candidate: cand.id } })
             stat.push({
                 rank: counter,
-                text: `${ico_list['person'].ico} - UID-${cand.id} ${cand.name} --> ${coun}${ico_list['date'].ico}\n`,
+                text: `${ico_list['person'].ico} ${cand.name} --> ${coun}🎯\n`,
                 score: coun,
             })
             counter++
@@ -254,13 +256,15 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
             return b.score - a.score;
         });
         let outputText = stat.map(item => item.text).join('');
-        outputText += `\n\n${ico_list['help'].ico} В статистике участвует ${counter-1} персонажей`
+        outputText += `\n\n${ico_list['help'].ico} В статистике участвует ${counter-1} участников`
         const keyboard = new KeyboardBuilder()
-        .textButton({ label: `${ico_list['edit'].ico} Бланк ${blank_id_sel}`, payload: { command: 'alliance_enter' }, color: 'secondary' }).inline().oneTime()
+        .textButton({ label: `${ico_list['edit'].ico} Бланк ${blank_id_sel}`, payload: { command: 'alliance_enter' }, color: 'secondary' })
+        .textButton({ label: `${ico_list['statistics'].ico} Бланк ${blank_id_sel}`, payload: { command: 'alliance_enter' }, color: 'secondary' })
+        .textButton({ label: `🧹 Бланк ${blank_id_sel}`, payload: { command: 'alliance_enter' }, color: 'secondary' }).inline().oneTime()
         await Send_Message(context.senderId, outputText, keyboard)
         await Keyboard_Index(context, `💡 Статистика и редактирование, всё ради этого!`)
     })
-    hearManager.hear(/✏ Бланк|!изменить/, async (context: any) => {
+    hearManager.hear(/✏ Бланк/, async (context: any) => {
         if (context.peerType == 'chat') { return }
         const user_check = await prisma.account.findFirst({ where: { idvk: context.senderId } })
         if (!user_check) { return }
@@ -303,6 +307,53 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
         if (blank_verify) { return await context.send('Бланк с таким ключом уже зарегистрирован')}
 		const blank_edit = await prisma.blank.update({ where: { id: blank_check.id }, data: { token: text_input } })
 		await Send_Message(user_check.idvk, `${ico_list['success'].ico} Успешно изменено [${blank_edit.id}]\n📝 Бланк:\n${blank_edit.name}\n🔑 Ключ:\n${blank_edit.token}`)
+        await Logger(`(private chat) ~ finished edit self <blank> #${blank_check.id} by <user> №${context.senderId}`)
+        await Keyboard_Index(context, `💡 Вы не имели право это сделать, но мы разрешаем!`)
+    })
+    hearManager.hear(/📊 Бланк/, async (context: any) => {
+        if (context.peerType == 'chat') { return }
+        const user_check = await prisma.account.findFirst({ where: { idvk: context.senderId } })
+        if (!user_check) { return }
+		const [cmd, xmd, value] = context.text.split(' ');
+        const target = parseInt(value)
+		const blank_check = await prisma.blank.findFirst({ where: { id_account: user_check.id, id: target } })
+		if (!blank_check) { return }
+        let ans = ''
+		for (const candidate of await prisma.candidate.findMany({ where: { id_blank: blank_check.id } })) {
+            ans += `${candidate.name}:\n`
+            let counter = 1
+            for (const vote of await prisma.vote.findMany({ where: { id_candidate: candidate.id } })) {
+                const account = await prisma.account.findFirst({ where: {id: vote.id_account } })
+                ans += `${counter++} https://vk.com/id${account?.idvk}\n`
+            }
+            ans += `\n`
+        }
+        fs.writeFileSync(`./temp/${blank_check.id}_${blank_check.id_account}.txt`, `${ans}`);
+        await Sleep(1500)
+        await context.sendDocuments({ value: `./temp/${blank_check.id}_${blank_check.id_account}.txt`, filename: `${blank_check.id}_${blank_check.id_account}.txt` }, { message: '💡 Открывать в блокноте' } )
+		//await Send_Message(user_check.idvk, `${ans}`)
+        await Logger(`(private chat) ~ finished edit self <blank> #${blank_check.id} by <user> №${context.senderId}`)
+        await Keyboard_Index(context, `💡 Вы не имели право это сделать, но мы разрешаем!`)
+    })
+    hearManager.hear(/🧹 Бланк/, async (context: any) => {
+        if (context.peerType == 'chat') { return }
+        const user_check = await prisma.account.findFirst({ where: { idvk: context.senderId } })
+        if (!user_check) { return }
+		const [cmd, xmd, value] = context.text.split(' ');
+        const target = parseInt(value)
+		const blank_check = await prisma.blank.findFirst({ where: { id_account: user_check.id, id: target } })
+		if (!blank_check) { return }
+        const confirm: { status: boolean, text: String } = await Confirm_User_Success(context, `обнулить голоса бланку №${blank_check.id} ${blank_check.name}?`)
+    	await context.send(`${confirm.text}`)
+    	if (!confirm.status) { return; }
+        let counter = 1
+		for (const candidate of await prisma.candidate.findMany({ where: { id_blank: blank_check.id } })) {
+            for (const vote of await prisma.vote.findMany({ where: { id_candidate: candidate.id } })) {
+                const vote_del = await prisma.vote.delete({ where: {id: vote.id } })
+                counter++
+            }
+        }
+		await Send_Message(user_check.idvk, `Удалено ${counter} голосов`)
         await Logger(`(private chat) ~ finished edit self <blank> #${blank_check.id} by <user> №${context.senderId}`)
         await Keyboard_Index(context, `💡 Вы не имели право это сделать, но мы разрешаем!`)
     })

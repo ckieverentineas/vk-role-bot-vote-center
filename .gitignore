@@ -5,3 +5,4 @@ build
 hog-stud-report.xlsx
 .env
 prisma/dev.db
+temp/

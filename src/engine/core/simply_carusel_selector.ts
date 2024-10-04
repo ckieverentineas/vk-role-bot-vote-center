@@ -44,11 +44,11 @@ export async function Simply_Carusel_Selector<T>(context: any, prompt: string, i
 
                 // Предыдущий элемент
                 if (id_builder_sent > 0) {
-                    keyboard.textButton({ label: `${ico_list['back'].ico}`, payload: { command: 'item_control_multi', id_item_sent: id_builder_sent - limiter }, color: 'secondary' });
+                    keyboard.textButton({ label: `Предыдущие`, payload: { command: 'item_control_multi', id_item_sent: id_builder_sent - limiter }, color: 'secondary' });
                 }
                 // Следующий элемент
                 if (id_builder_sent + limiter < items.length) {
-                    keyboard.textButton({ label: `${ico_list['next'].ico}`, payload: { command: 'item_control_multi', id_item_sent: id_builder_sent + limiter }, color: 'secondary' });
+                    keyboard.textButton({ label: `Еще`, payload: { command: 'item_control_multi', id_item_sent: id_builder_sent + limiter }, color: 'secondary' });
                 }
             } else {
                 event_logger = `${ico_list['warn'].ico} У вас еще нет элементов.`;
@@ -63,7 +63,7 @@ export async function Simply_Carusel_Selector<T>(context: any, prompt: string, i
             if (!answer.payload) {
                 await context.send(`${ico_list['help'].ico} Жмите только по кнопкам с иконками!`);
             } else {
-                if (answer.text === `${ico_list['next'].ico}` || answer.text === `${ico_list['back'].ico}`) {
+                if (answer.text === `Еще` || answer.text === `Предыдущие`) {
                     id_builder_sent = answer.payload.id_item_sent;
                 } else {
                     item_sel = answer.payload.id_item;
