@@ -1,0 +1,32 @@
+-- CreateTable
+CREATE TABLE "Account" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "idvk" INTEGER NOT NULL,
+    "role" INTEGER NOT NULL,
+    "crdate" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CreateTable
+CREATE TABLE "Blank" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL,
+    "id_account" INTEGER NOT NULL DEFAULT 1,
+    CONSTRAINT "Blank_id_account_fkey" FOREIGN KEY ("id_account") REFERENCES "Account" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Candidate" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL,
+    "id_blank" INTEGER NOT NULL DEFAULT 1,
+    CONSTRAINT "Candidate_id_blank_fkey" FOREIGN KEY ("id_blank") REFERENCES "Blank" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Vote" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id_account" INTEGER NOT NULL DEFAULT 1,
+    "id_candidate" INTEGER NOT NULL DEFAULT 1,
+    CONSTRAINT "Vote_id_account_fkey" FOREIGN KEY ("id_account") REFERENCES "Account" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Vote_id_candidate_fkey" FOREIGN KEY ("id_candidate") REFERENCES "Candidate" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
