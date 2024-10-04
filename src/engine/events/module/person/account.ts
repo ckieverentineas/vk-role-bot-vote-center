@@ -21,7 +21,7 @@ export async function Account_Register(context: any) {
 		);
 		if (answer.isTimeout) { return await context.send(`${ico_list['time'].ico} Время ожидания подтверждения согласия истекло!`) }
 		if (!/да|yes|Согласиться|конечно|✏/i.test(answer.text|| '{}')) {
-			await context.send(`${ico_list['cancel'].ico} Вы отказались дать свое согласие, на участие в опросах!`);
+			await context.send(`${ico_list['cancel'].ico} Вы отказались дать свое согласие на участие в опросах!`);
 			return;
 		}
 		//приветствие игрока

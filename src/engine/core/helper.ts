@@ -322,6 +322,7 @@ export async function Input_Text(context: any, prompt: string, limit?: number) {
                 input_tr = true
             } else {
                 if (confirma.text == `${ico_list['cancel'].ico} Назад`) { await context.send(`${ico_list['cancel'].ico} Ввод прерван пользователем`); return false }
+                if (confirma.text == `${ico_list['cancel'].ico} Нет`) { await context.send(`${ico_list['cancel'].ico} Нам бы вашу неуверенность...`); return false }
                 continue
             }
 		} else { 

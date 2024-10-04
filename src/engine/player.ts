@@ -36,8 +36,8 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
         const user_adm: Account | null | undefined = await prisma.account.findFirst({ where: { idvk: Number(context.senderId) } })
         if (!user_adm) { return }
         if (user_adm.role == 1) { return }
-        const uid = await context.question(`🧷 Введите 💳UID банковского счета получателя:`, timer_text)
-        if (uid.isTimeout) { return await context.send(`⏰ Время ожидания ввода банковского счета истекло!`) }
+        const uid = await context.question(`🧷 Введите 💳UID аккаунта:`, timer_text)
+        if (uid.isTimeout) { return await context.send(`⏰ Время ожидания ввода идентификатора аккаунта истекло!`) }
 		if (uid.text) {
             const get_user = await prisma.account.findFirst({ where: { id: Number(uid.text) } })
             if (!get_user) { return }
@@ -47,7 +47,7 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
             .textButton({ label: 'Снять админку (в том числе супер)', payload: { command: 'denied' }, color: 'secondary' }).row()
             if (user_adm.role == 3) {
                 keyboard.textButton({ label: 'Дать Супер админку', payload: { command: 'access_pro' }, color: 'secondary' }).row()
-            }
+            }   
             keyboard.textButton({ label: 'Ничего не делать', payload: { command: 'cancel' }, color: 'secondary' }).row()
             keyboard.oneTime().inline()
             const answer1 = await context.question(`⌛ Что будем делать?`, { keyboard: keyboard, answerTimeLimit })
@@ -155,11 +155,10 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
 		const user_inf = await User_Info(context)
         const keyboard = new KeyboardBuilder()
 		.textButton({ label: `📬 Голосовать`, payload: { command: 'card_enter' }, color: 'secondary' }).row()
-		.textButton({ label: '📐 Пкметр', payload: { command: 'shop_category_enter' }, color: 'positive' })
     	if (user_check.role != 1) {
-    	    keyboard.textButton({ label: '⚙ Бланки', payload: { command: 'card_enter' }, color: 'secondary' })
-            .textButton({ label: '👥 Кандидаты', payload: { command: 'inventory_enter' }, color: 'primary' })
-            .textButton({ label: '👀 Бланки', payload: { command: 'inventory_enter' }, color: 'primary' })
+    	    keyboard.textButton({ label: '⚙ Бланки', payload: { command: 'card_enter' }, color: 'secondary' }).row()
+            .textButton({ label: '👥 Кандидаты', payload: { command: 'inventory_enter' }, color: 'primary' }).row()
+            .textButton({ label: '👀 Бланки', payload: { command: 'inventory_enter' }, color: 'primary' }).row()
     	}
     	keyboard.callbackButton({ label: '🚫', payload: { command: 'exit' }, color: 'secondary' }).oneTime().inline()
 		await Send_Message(user_check.idvk, `🛰 Вы в системе голосований, ${user_inf.first_name}, что изволите?`, keyboard)
@@ -171,9 +170,9 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
         if (!account) { return }
         // изменение названия факультета
         const blank_name = await Input_Text(context, `Введите ключ доступа к голосованию.\n${ico_list['help'].ico}Отправьте сообщение в чат для изменения:`)
-        if (!blank_name) { return }
+        if (!blank_name) { return await Keyboard_Index(context, `💡 Обновление клавиатуры...`); }
         const blank_verify = await prisma.blank.findFirst({ where: { token: blank_name } })
-        if (!blank_verify) { await context.send('Голосование не найдено'); return await Keyboard_Index(context, `⌛ Изменение, отец учения, выдаем кнопку вызова спутника...`) }
+        if (!blank_verify) { await context.send('Голосование не найдено'); return await Keyboard_Index(context, `⌛ Обновление клавиатуры...`) }
         let wotker = true
         while (wotker) {
             const blank_list: Candidate[] = await prisma.candidate.findMany({ where: { id_blank: blank_verify.id } })
@@ -182,6 +181,7 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
             const votedCandidateIds = new Set(vote_list.map(vote => vote.id_candidate));
             // Фильтруем blank_list, исключая тех кандидатов, которые есть в votedCandidateIds
             const filteredBlankList = blank_list.filter(candidate => !votedCandidateIds.has(candidate.id));
+            if (filteredBlankList.length === 0) { await context.send(`Кандидаты кончились, вы отдали голоса за всех!`); break }
             const blank_id_sel = await Simply_Carusel_Selector(
                 context,
                 `Выберите кандидата, чтобы проголосовать:`,
@@ -193,7 +193,7 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
             if (!blank_id_sel) { return }
             const voter = await prisma.vote.create({ data: { id_account: account.id, id_candidate: blank_id_sel } })
             if (voter) { await context.send(`Ваш голос за кандидата №${voter.id} принят`)}
-            const confirm: { status: boolean, text: String } = await Confirm_User_Success(context, `проголосовать еще за когото??`)
+            const confirm: { status: boolean, text: String } = await Confirm_User_Success(context, `проголосовать еще за кого-то??`)
     	    //await context.send(`${confirm.text}`)
     	    if (!confirm.status) { wotker = false }
         }
@@ -211,6 +211,7 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
         const account  = await prisma.account.findFirst({ where: { idvk: context.senderId } })
         if (!account) { return }
         const blank_list: Blank[] = await prisma.blank.findMany({ where: { id_account: account.id } })
+        if (blank_list.length === 0) { await context.send(`Нужно создать бланк`); return await Keyboard_Index(context, `💡 Обновление клавиатуры...`) }
         const blank_id_sel = await Simply_Carusel_Selector(
             context,
             `Выберите бланк для управления кандидатами`,
@@ -228,6 +229,7 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
         const account  = await prisma.account.findFirst({ where: { idvk: context.senderId } })
         if (!account) { return }
         const blank_list: Blank[] = await prisma.blank.findMany({ where: { id_account: account.id } })
+        if (blank_list.length === 0) { await context.send(`Нужно создать бланк`); return await Keyboard_Index(context, `💡 Обновление клавиатуры...`) }
         const blank_id_sel = await Simply_Carusel_Selector(
             context,
             `Выберите бланк для настройки доступа`,
@@ -298,7 +300,7 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
 			}
 		}
         const blank_verify = await prisma.blank.findFirst({ where: { token: text_input } })
-        if (blank_verify) { return await context.send('Бланк с таким ключем уже зарегистрирован')}
+        if (blank_verify) { return await context.send('Бланк с таким ключом уже зарегистрирован')}
 		const blank_edit = await prisma.blank.update({ where: { id: blank_check.id }, data: { token: text_input } })
 		await Send_Message(user_check.idvk, `${ico_list['success'].ico} Успешно изменено [${blank_edit.id}]\n📝 Бланк:\n${blank_edit.name}\n🔑 Ключ:\n${blank_edit.token}`)
         await Logger(`(private chat) ~ finished edit self <blank> #${blank_check.id} by <user> №${context.senderId}`)

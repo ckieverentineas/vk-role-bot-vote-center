@@ -9,8 +9,7 @@ import { InitGameRoutes } from './engine/init';
 import { Group_Id_Get, Keyboard_Index, Logger, Send_Message, Sleep, Worker_Checker, Worker_Online_Setter } from './engine/core/helper';
 import * as dotenv from 'dotenv' // see https://github.com/motdotla/dotenv#how-do-i-use-dotenv-with-import
 import prisma from './engine/events/module/prisma_client';
-import { Operation_Enter, Right_Enter, User_Info } from './engine/events/module/tool';
-import { Counter_PK_Module } from './engine/events/module/counter_pk';
+import { Exiter, Operation_Enter, Right_Enter, User_Info } from './engine/events/module/tool';
 import { Account_Register } from './engine/events/module/person/account';
 dotenv.config()
 
@@ -64,10 +63,6 @@ registerUserRoutes(hearManager)
 export const users_pk: Array<{ idvk: number, text: string, mode: boolean }> = []
 //миддлевар для предварительной обработки сообщений
 vk.updates.on('message_new', async (context: any, next: any) => {
-	//await vk.api.messages.send({ peer_id: 463031671, random_id: 0, message: `тест2`, attachment: `photo200840769_457273112` } )
-	const pk_counter_st = await Counter_PK_Module(context)
-	//console.log(users_pk)
-	if (pk_counter_st) { return }
 	if (context.peerType == 'chat') { 
 		/*
 		try { 
@@ -85,8 +80,7 @@ vk.updates.on('message_new', async (context: any, next: any) => {
 })
 vk.updates.on('message_event', async (context: any, next: any) => { 
 	const config: any = {
-		"operation_enter": Operation_Enter, // заглушки
-		"right_enter": Right_Enter, // заглушки
+		"exit": Exiter,
 	}
 	try {
 		await config[context.eventPayload.command](context)
