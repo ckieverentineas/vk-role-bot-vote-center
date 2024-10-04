@@ -186,13 +186,13 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
                 context,
                 `Выберите кандидата, чтобы проголосовать:`,
                 filteredBlankList,
-                async (item) => `\n\n${ico_list['card'].ico}  №${item.id} <--\n${ico_list['person'].ico} Кандидат: ${item.name}\n`,
-                (item) => `🎯 №${item.id}-${item.name.slice(0,30)}`, // labelExtractor
+                async (item) => `\n\n${ico_list['person'].ico} Участник: ${item.name}\n`,
+                (item) => `🎯 ${item.name.slice(0,30)}`, // labelExtractor
                 (item, index) => ({ command: 'builder_control', id_item_sent: index, id_item: item.id }) // payloadExtractor
             );
             if (!blank_id_sel) { return }
             const voter = await prisma.vote.create({ data: { id_account: account.id, id_candidate: blank_id_sel } })
-            if (voter) { await context.send(`Ваш голос за кандидата №${voter.id} принят`)}
+            if (voter) { await context.send(`Ваш голос за участника №${voter.id} принят`)}
             const confirm: { status: boolean, text: String } = await Confirm_User_Success(context, `проголосовать еще за кого-то??`)
     	    //await context.send(`${confirm.text}`)
     	    if (!confirm.status) { wotker = false }
