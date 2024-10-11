@@ -346,7 +346,7 @@ export function registerUserRoutes(hearManager: HearManager<IQuestionMessageCont
         const confirm: { status: boolean, text: String } = await Confirm_User_Success(context, `обнулить голоса бланку №${blank_check.id} ${blank_check.name}?`)
     	await context.send(`${confirm.text}`)
     	if (!confirm.status) { return; }
-        let counter = 1
+        let counter = 0
 		for (const candidate of await prisma.candidate.findMany({ where: { id_blank: blank_check.id } })) {
             for (const vote of await prisma.vote.findMany({ where: { id_candidate: candidate.id } })) {
                 const vote_del = await prisma.vote.delete({ where: {id: vote.id } })
